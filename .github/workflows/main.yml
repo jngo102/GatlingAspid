@@ -26,7 +26,7 @@ jobs:
       - name: Fetch Vasi dependency
         run: |
           wget https://github.com/fifty-six/HollowKnight.Vasi/releases/latest/download/Vasi.zip -O Vasi.zip
-          unzip -o Vasi.zip -d References/Mods/Vasi
+          unzip -o Vasi.zip -d References
 
       - name: Setup MSBuild
         run: |
