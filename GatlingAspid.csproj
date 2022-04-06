@@ -17,8 +17,8 @@
 		<Product>GatlingAspid</Product>
 		<Description>Gatling Aspid mod</Description>
 		<Copyright>Copyright © jngo102 2022</Copyright>
-		<AssemblyVersion>1.0.0.0</AssemblyVersion>
-		<FileVersion>1.0.0.0</FileVersion>
+		<AssemblyVersion>1.0.0.1</AssemblyVersion>
+		<FileVersion>1.0.0.1</FileVersion>
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
@@ -327,7 +327,7 @@
 		</Reference>
 		<Reference Include="UnityEngine.WindModule">
 			<HintPath>$(HollowKnightRefs)/UnityEngine.WindModule.dll</HintPath>
-		</Reference>
+		</Reference>	
 		<Reference Include="UnityEngine.XRModule">
 			<HintPath>$(HollowKnightRefs)/UnityEngine.XRModule.dll</HintPath>
 		</Reference>

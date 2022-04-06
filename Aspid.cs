@@ -9,8 +9,6 @@ namespace GatlingAspid
 {
     internal class Aspid : MonoBehaviour
     {
-        private const int ShotsMax = 60;
-
         private AudioSource _audio;
         private PlayMakerFSM _spitter;
         private tk2dSpriteAnimator _anim;
@@ -78,8 +76,10 @@ namespace GatlingAspid
             if (GatlingAspid.Instance.GlobalSettings.Crystals)
             {
                 fireSpawn.gameObject = GatlingAspid.GameObjects["Crystal"];
+                shootPoint.transform.localPosition = new Vector2(0, -0.25f);
             }
             GameObject venom = fireSpawn.gameObject.Value;
+            venom.GetComponent<MeshRenderer>().sortingOrder++;
             // Only 24 prefabs in the object pool, so increase it
             venom.CreatePool(128);
 
@@ -106,32 +106,30 @@ namespace GatlingAspid
             intVariables.Add(shots);
 
             var shotsMax = new FsmInt("Shots Max");
-            shotsMax.Value = ShotsMax;
+            shotsMax.Value = GatlingAspid.Instance.GlobalSettings.ShotsPerBarrage;
             intVariables.Add(shotsMax);
 
             _spitter.FsmVariables.IntVariables = intVariables.ToArray();
 
             _spitter.CreateBool("Started Firing").Value = false;
 
-            var setFiringBoolValueFalse = new SetBoolValue
+            fireRecoverState.InsertAction(0, new SetBoolValue
             {
                 boolVariable = _spitter.Fsm.GetFsmBool("Started Firing"),
                 boolValue = false,
-            };
+            });
 
-            var setIntValue = new SetIntValue
+            _spitter.GetState("Distance Fly").InsertAction(0, new SetIntValue
             {
                 intVariable = _spitter.Fsm.GetFsmInt("Shots"),
                 intValue = 0,
-            };
-            _spitter.GetState("Fire Recover").InsertAction(0, setFiringBoolValueFalse);
-            _spitter.GetState("Distance Fly").InsertAction(0, setIntValue);
-            _spitter.GetState("Fire Recover").InsertMethod(1, () => _audio.Stop());
+            });
+            fireRecoverState.InsertMethod(1, () => _audio.Stop());
 
             var fireState = _spitter.GetState("Fire");
 
             _spitter.GetState("Fire Pause").AddTransition(FsmEvent.Finished, "Fire");
-            _spitter.GetState("Fire Recover").AddTransition(FsmEvent.Finished, "Fire Dribble");
+            fireRecoverState.AddTransition(FsmEvent.Finished, "Fire Dribble");
             _spitter.ChangeTransition("Fire", "WAIT", "Continue Firing?");
 
             _spitter.GetAction<FireAtTarget>("Fire", 2).speed.Value = 60;
@@ -157,46 +155,57 @@ namespace GatlingAspid
                 }
             });
 
-            var setFiringBoolValueTrue = new SetBoolValue
+            fireState.InsertAction(1, new SetBoolValue
             {
                 boolVariable = _spitter.Fsm.GetFsmBool("Started Firing"),
                 boolValue = true,
-            };
+            });
 
-            fireState.InsertAction(1, setFiringBoolValueTrue);
-
-            var intAdd = new IntAdd
+            fireState.AddAction(new IntAdd
             {
                 intVariable = _spitter.Fsm.GetFsmInt("Shots"),
                 add = 1,
                 everyFrame = false,
-            };
-            fireState.AddAction(intAdd);
+            });
 
-            var firePauseWait = new Wait
+            _spitter.GetState("Fire Pause").InsertAction(0, new Wait
             {
-                time = 0.025f,
+                time = GatlingAspid.Instance.GlobalSettings.FireRate > 0 ? (1.0f / GatlingAspid.Instance.GlobalSettings.FireRate) : 0.025f,
                 finishEvent = FsmEvent.Finished,
                 realTime = false,
-            };
-            _spitter.GetState("Fire Pause").InsertAction(0, firePauseWait);
+            });
 
             string attackRecoverAnim = "Recover";
-            _spitter.GetState("Fire Recover").InsertMethod(0, () =>
+            fireRecoverState.InsertMethod(0, () =>
             {
                 _anim.Play(attackRecoverAnim);
                 _audio.volume = 1.0f;
+                if (!GatlingAspid.Instance.GlobalSettings.Grenades) return;
+
                 GameObject jelly = Instantiate(GatlingAspid.GameObjects["Jelly"], transform.position, Quaternion.identity);
                 Physics2D.IgnoreCollision(GetComponent<BoxCollider2D>(), jelly.GetComponent<CircleCollider2D>());
             });
 
-            var fireRecoverWait = new Wait
+            if (GatlingAspid.Instance.GlobalSettings.Grenades)
+            {
+                fireRecoverState.AddAction(new AudioPlayerOneShotSingle
+                {
+                    audioClip = GatlingAspid.AudioClips["Grenade"],
+                    audioPlayer = FindObjectsOfType<GameObject>(true).First(go => go.name.Contains("Audio Player Actor")),
+                    delay = 0,
+                    pitchMax = 1.15f,
+                    pitchMin = 0.85f,
+                    spawnPoint = shootPoint,
+                    storePlayer = null,
+                });
+            }
+
+            fireRecoverState.AddAction(new Wait
             {
                 time = 1.0f / _anim.GetClipByName(attackRecoverAnim).fps * _anim.GetClipByName(attackRecoverAnim).frames.Length,
                 finishEvent = FsmEvent.Finished,
                 realTime = false,
-            };
-            _spitter.GetState("Fire Recover").InsertAction(1, fireRecoverWait);
+            });
 
             _spitter.GetState("Continue Firing?").InsertMethod(0, () =>
             {

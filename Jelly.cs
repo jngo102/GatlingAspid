@@ -17,7 +17,6 @@ namespace GatlingAspid
         {
             _lilJelly.SetState("Chase");
 
-            _lilJelly.GetState("Die").RemoveAction<SpawnObjectFromGlobalPool>();
             _lilJelly.GetState("Die").InsertMethod(0, Explode);
             //_lilJelly.GetAction<ChaseObjectV2>("Chase").accelerationForce.Value *= 2;
         }
