@@ -79,7 +79,7 @@ namespace GatlingAspid
                 shootPoint.transform.localPosition = new Vector2(0, -0.25f);
             }
             GameObject venom = fireSpawn.gameObject.Value;
-            venom.GetComponent<MeshRenderer>().sortingOrder++;
+            venom.GetComponent<Renderer>().sortingOrder++;
             // Only 24 prefabs in the object pool, so increase it
             venom.CreatePool(128);
 
@@ -124,7 +124,6 @@ namespace GatlingAspid
                 intVariable = _spitter.Fsm.GetFsmInt("Shots"),
                 intValue = 0,
             });
-            fireRecoverState.InsertMethod(1, () => _audio.Stop());
 
             var fireState = _spitter.GetState("Fire");
 
@@ -175,19 +174,27 @@ namespace GatlingAspid
                 realTime = false,
             });
 
-            string attackRecoverAnim = "Recover";
-            fireRecoverState.InsertMethod(0, () =>
-            {
-                _anim.Play(attackRecoverAnim);
-                _audio.volume = 1.0f;
-                if (!GatlingAspid.Instance.GlobalSettings.Grenades) return;
-
-                GameObject jelly = Instantiate(GatlingAspid.GameObjects["Jelly"], transform.position, Quaternion.identity);
-                Physics2D.IgnoreCollision(GetComponent<BoxCollider2D>(), jelly.GetComponent<CircleCollider2D>());
-            });
-
             if (GatlingAspid.Instance.GlobalSettings.Grenades)
             {
+                fireRecoverState.InsertAction(0, new CreateObject
+                {
+                    gameObject = GatlingAspid.GameObjects["Jelly"],
+                    rotation = new FsmVector3
+                    {
+                        Name = "",
+                        RawValue = Vector3.zero,
+                        Value = Vector3.zero,
+                    },
+                    spawnPoint = shootPoint,
+                    storeObject = new FsmGameObject
+                    {
+                        Name = "",
+                        RawValue = null,
+                        Value = null,
+                    },
+                });
+
+
                 fireRecoverState.AddAction(new AudioPlayerOneShotSingle
                 {
                     audioClip = GatlingAspid.AudioClips["Grenade"],
@@ -196,10 +203,16 @@ namespace GatlingAspid
                     pitchMax = 1.15f,
                     pitchMin = 0.85f,
                     spawnPoint = shootPoint,
-                    storePlayer = null,
+                    storePlayer = new FsmGameObject
+                    {
+                        Name = "",
+                        RawValue = null,
+                        Value = null,
+                    },
                 });
             }
 
+            string attackRecoverAnim = "Recover";
             fireRecoverState.AddAction(new Wait
             {
                 time = 1.0f / _anim.GetClipByName(attackRecoverAnim).fps * _anim.GetClipByName(attackRecoverAnim).frames.Length,

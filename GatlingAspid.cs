@@ -5,6 +5,7 @@ using System.IO;
 using System.Reflection;
 using UnityEngine;
 using Vasi;
+using UObject = UnityEngine.Object;
 
 namespace GatlingAspid
 {
@@ -19,7 +20,7 @@ namespace GatlingAspid
 
         internal static GatlingAspid Instance;
 
-        public override string GetVersion() => "1.0.0.0";
+        public override string GetVersion() => "1.0.0.1";
 
         public GatlingAspid() : base("Gatling Aspid") { }
 
@@ -53,14 +54,16 @@ namespace GatlingAspid
                 var crystal = flyer.GetAction<SpawnObjectFromGlobalPool>("Fire").gameObject.Value;
                 GameObjects.Add("Crystal", crystal);
             }
-
+            
             if (preloadedObjects.ContainsKey("Fungus3_02"))
             {
                 var jellyDeath = preloadedObjects["Fungus3_02"]["Jellyfish"].GetComponent<EnemyDeathEffects>();
                 var corpseObj = ReflectionHelper.GetField<EnemyDeathEffects, GameObject>(jellyDeath, "corpsePrefab");
                 PlayMakerFSM corpse = corpseObj.LocateMyFSM("corpse");
                 GameObject jellyObj = corpse.GetAction<CreateObject>("Explode", 3).gameObject.Value;
-                jellyObj.AddComponent<Jelly>();
+                //PlayMakerFSM lilJelly = jellyObj.LocateMyFSM("Lil Jelly");
+                //GameObject explosion = lilJelly.GetAction<SpawnObjectFromGlobalPool>("Die").gameObject.Value;
+                //UObject.Destroy(explosion.LocateMyFSM("damages_enemy"));
                 GameObjects.Add("Jelly", jellyObj);
             }
 
@@ -113,7 +116,7 @@ namespace GatlingAspid
                 case "DESC_SUPER_SPITTER":
                     return "Ancient, well-armed form of the Aspid. Once thought extinct, they have reappeared at the edges of the world.";
                 case "NOTE_SUPER_SPITTER":
-                    return "These cruel foes will ambush you and relentlessly attack with their searing venom. How strange that their descendants are so weak. If I have children, I hope they will be stronger than me...";
+                    return "holy shit what is that";
                 default:
                     return orig;
             }

@@ -19,6 +19,13 @@ namespace GatlingAspid
             set => _crystals = value;
         }
 
+        private bool _grenades;
+        public bool Grenades
+        {
+            get => _grenades;
+            set => _grenades = value;
+        }
+        
         private int _shotsPerBarrage = 80;
         public int ShotsPerBarrage
         {
@@ -31,13 +38,6 @@ namespace GatlingAspid
         {
             get => _fireRate;
             set => _fireRate = value;
-        }
-
-        private bool _grenades;
-        public bool Grenades
-        {
-            get => _grenades;
-            set => _grenades = value;
         }
     }
 }
