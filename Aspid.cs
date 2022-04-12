@@ -99,7 +99,7 @@ namespace GatlingAspid
 
             _spitter.Fsm.States = states.ToArray();
 
-            var intVariables = _spitter.FsmVariables.IntVariables.ToList();
+            List<FsmInt> intVariables = _spitter.FsmVariables.IntVariables.ToList();
 
             var shots = new FsmInt("Shots");
             shots.Value = 0;
@@ -111,23 +111,28 @@ namespace GatlingAspid
 
             _spitter.FsmVariables.IntVariables = intVariables.ToArray();
 
-            _spitter.CreateBool("Started Firing").Value = false;
+            List<FsmGameObject> gameObjectVariables = _spitter.FsmVariables.GameObjectVariables.ToList();
+            var grenade = new FsmGameObject("Grenade");
+            gameObjectVariables.Add(grenade);
+
+            FsmBool startedFiringBool = _spitter.CreateBool("Started Firing");
+            startedFiringBool.Value = false;
 
             fireRecoverState.InsertAction(0, new SetBoolValue
             {
-                boolVariable = _spitter.Fsm.GetFsmBool("Started Firing"),
+                boolVariable = startedFiringBool,
                 boolValue = false,
             });
 
             _spitter.GetState("Distance Fly").InsertAction(0, new SetIntValue
             {
-                intVariable = _spitter.Fsm.GetFsmInt("Shots"),
+                intVariable = shots,
                 intValue = 0,
             });
 
             var fireState = _spitter.GetState("Fire");
 
-            _spitter.GetState("Fire Pause").AddTransition(FsmEvent.Finished, "Fire");
+            firePauseState.AddTransition(FsmEvent.Finished, "Fire");
             fireRecoverState.AddTransition(FsmEvent.Finished, "Fire Dribble");
             _spitter.ChangeTransition("Fire", "WAIT", "Continue Firing?");
 
@@ -142,43 +147,84 @@ namespace GatlingAspid
             {
                 fireState.RemoveAction(fireState.Actions.Length - 1);
             }
-
-            fireState.InsertMethod(0, () =>
-            {
-                if (!_spitter.Fsm.GetFsmBool("Started Firing").Value)
-                {
-                    _audio.clip = GatlingAspid.AudioClips["Firing"];
-                    _audio.volume = 0.5f;
-                    _audio.loop = true;
-                    _audio.Play();
-                }
-            });
-
-            fireState.InsertAction(1, new SetBoolValue
-            {
-                boolVariable = _spitter.Fsm.GetFsmBool("Started Firing"),
-                boolValue = true,
-            });
-
+            
             fireState.AddAction(new IntAdd
             {
-                intVariable = _spitter.Fsm.GetFsmInt("Shots"),
+                intVariable = shots,
                 add = 1,
                 everyFrame = false,
             });
 
-            _spitter.GetState("Fire Pause").InsertAction(0, new Wait
+            fireState.AddAction(new BoolTest
+            {
+                boolVariable = startedFiringBool,
+                isTrue = FsmEvent.FindEvent("WAIT"),
+            });
+
+            fireState.AddAction(new SetAudioLoop
+            {
+                gameObject = new FsmOwnerDefault
+                {
+                    GameObject = null,
+                    OwnerOption = OwnerDefaultOption.UseOwner,
+                },
+                loop = true,
+            });
+
+            fireState.AddAction(new AudioPlay
+            {
+                gameObject = new FsmOwnerDefault
+                {
+                    GameObject = null,
+                    OwnerOption = OwnerDefaultOption.UseOwner,
+                },
+                oneShotClip = GatlingAspid.AudioClips["Firing"],
+            });
+
+            fireState.AddAction(new SetBoolValue
+            {
+                boolVariable = startedFiringBool,
+                boolValue = true,
+            });
+
+            firePauseState.AddAction(new Wait
             {
                 time = GatlingAspid.Instance.GlobalSettings.FireRate > 0 ? (1.0f / GatlingAspid.Instance.GlobalSettings.FireRate) : 0.025f,
                 finishEvent = FsmEvent.Finished,
                 realTime = false,
             });
 
+            fireRecoverState.AddAction(new AudioStop
+            {
+                gameObject = new FsmOwnerDefault
+                {
+                    GameObject = null,
+                    OwnerOption = OwnerDefaultOption.UseOwner,
+                },
+            });
+
+            fireRecoverState.AddAction(new Tk2dPlayAnimationWithEvents
+            {
+                animationCompleteEvent = FsmEvent.Finished,
+                clipName = "Recover",
+                gameObject = new FsmOwnerDefault
+                {
+                    GameObject = null,
+                    OwnerOption = OwnerDefaultOption.UseOwner,
+                },
+            });
+
             if (GatlingAspid.Instance.GlobalSettings.Grenades)
             {
-                fireRecoverState.InsertAction(0, new CreateObject
+                fireRecoverState.AddAction(new CreateObject
                 {
                     gameObject = GatlingAspid.GameObjects["Jelly"],
+                    position = new FsmVector3
+                    {
+                        Name = "",
+                        RawValue = Vector3.zero,
+                        Value = Vector3.zero,
+                    },
                     rotation = new FsmVector3
                     {
                         Name = "",
@@ -186,14 +232,28 @@ namespace GatlingAspid
                         Value = Vector3.zero,
                     },
                     spawnPoint = shootPoint,
-                    storeObject = new FsmGameObject
-                    {
-                        Name = "",
-                        RawValue = null,
-                        Value = null,
-                    },
+                    storeObject = grenade,
                 });
 
+                fireRecoverState.AddAction(new IgnoreCollision
+                {
+                    gameObject1 = gameObject,
+                    gameObject2 = grenade,
+                });
+
+                fireRecoverState.AddAction(new SetFsmState
+                {
+                    gameObject = grenade,
+                    fsmName = "Lil Jelly",
+                    stateName = "Startle",
+                });
+
+                fireRecoverState.AddAction(new SetFsmState
+                {
+                    gameObject = grenade,
+                    fsmName = "Lil Jelly",
+                    stateName = "Chase",
+                });
 
                 fireRecoverState.AddAction(new AudioPlayerOneShotSingle
                 {
@@ -212,25 +272,17 @@ namespace GatlingAspid
                 });
             }
 
-            string attackRecoverAnim = "Recover";
-            fireRecoverState.AddAction(new Wait
+            continueFiringState.InsertAction(0, new IntCompare
             {
-                time = 1.0f / _anim.GetClipByName(attackRecoverAnim).fps * _anim.GetClipByName(attackRecoverAnim).frames.Length,
-                finishEvent = FsmEvent.Finished,
-                realTime = false,
+                equal = FsmEvent.FindEvent("TRUE"),
+                greaterThan = FsmEvent.FindEvent("TRUE"),
+                integer1 = shots,
+                integer2 = shotsMax,
+                lessThan = FsmEvent.FindEvent("FALSE"),
             });
 
-            _spitter.GetState("Continue Firing?").InsertMethod(0, () =>
-            {
-                if (_spitter.Fsm.GetFsmInt("Shots").Value >= _spitter.Fsm.GetFsmInt("Shots Max").Value)
-                {
-                    _spitter.SetState("Fire Recover");
-                }
-                else
-                {
-                    _spitter.SetState("Fire Pause");
-                }
-            });
+            continueFiringState.AddTransition("TRUE", "Fire Recover");
+            continueFiringState.AddTransition("FALSE", "Fire Pause");
         }
     }
 }

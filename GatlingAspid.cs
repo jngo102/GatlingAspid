@@ -24,10 +24,10 @@ namespace GatlingAspid
 
         public GatlingAspid() : base("Gatling Aspid") { }
 
-        private List<(string, string)> GetPreloadsFromSettings()
+        public override List<(string, string)> GetPreloadNames()
         {
-            List<(string, string)> preloads = new List<(string, string)>();
-            
+            List<(string, string)> preloads = new();
+
             if (_globalSettings.Crystals)
             {
                 preloads.Add(("Mines_07", "Crystal Flyer"));
@@ -41,30 +41,22 @@ namespace GatlingAspid
             return preloads;
         }
 
-        public override List<(string, string)> GetPreloadNames()
-        {
-            return GetPreloadsFromSettings();
-        }
-
         public override void Initialize(Dictionary<string, Dictionary<string, GameObject>> preloadedObjects)
         {
-            if (preloadedObjects.ContainsKey("Mines_07"))
+            if (_globalSettings.Crystals)
             {
                 var flyer = preloadedObjects["Mines_07"]["Crystal Flyer"].LocateMyFSM("Crystal Flyer");
                 var crystal = flyer.GetAction<SpawnObjectFromGlobalPool>("Fire").gameObject.Value;
                 GameObjects.Add("Crystal", crystal);
             }
             
-            if (preloadedObjects.ContainsKey("Fungus3_02"))
+            if (_globalSettings.Grenades)
             {
                 var jellyDeath = preloadedObjects["Fungus3_02"]["Jellyfish"].GetComponent<EnemyDeathEffects>();
-                var corpseObj = ReflectionHelper.GetField<EnemyDeathEffects, GameObject>(jellyDeath, "corpsePrefab");
-                PlayMakerFSM corpse = corpseObj.LocateMyFSM("corpse");
-                GameObject jellyObj = corpse.GetAction<CreateObject>("Explode", 3).gameObject.Value;
-                //PlayMakerFSM lilJelly = jellyObj.LocateMyFSM("Lil Jelly");
-                //GameObject explosion = lilJelly.GetAction<SpawnObjectFromGlobalPool>("Die").gameObject.Value;
-                //UObject.Destroy(explosion.LocateMyFSM("damages_enemy"));
-                GameObjects.Add("Jelly", jellyObj);
+                var corpse = ReflectionHelper.GetField<EnemyDeathEffects, GameObject>(jellyDeath, "corpsePrefab");
+                PlayMakerFSM corpseFSM = corpse.LocateMyFSM("corpse");
+                GameObject jelly = corpseFSM.GetAction<CreateObject>("Explode", 3).gameObject.Value;
+                GameObjects.Add("Jelly", jelly);
             }
 
             Instance = this;
