@@ -120,6 +120,8 @@ namespace GatlingAspid
             {
                 self.gameObject.AddComponent<Aspid>();
             }
+            
+            orig(self);
         }
     }
 }
